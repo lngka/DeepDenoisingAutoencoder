@@ -1,4 +1,4 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
 import pdb
 
@@ -7,14 +7,14 @@ from model import REG
 from preprocessing import Synth, GenMatrix
 from os.path import join
 from utils import search_wav
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 
 np.random.seed(1234567)
 
 FLAGS = tf.flags.FLAGS
-tf.flags.DEFINE_string('clean_dir', '/mnt/md1/user_jonlu/Github/DeepDenoisingAutoencoder/data/raw/clean',
+tf.flags.DEFINE_string('clean_dir', '/Users/nvckhoa/code/DeepDenoisingAutoencoder/data/raw/clean',
                        'set clean data folder')
-tf.flags.DEFINE_string('noise_dir', '/mnt/md1/user_jonlu/Github/DeepDenoisingAutoencoder/data/raw/noise',
+tf.flags.DEFINE_string('noise_dir', '/Users/nvckhoa/code/DeepDenoisingAutoencoder/data/raw/noise',
                        'set noise data folder')
 tf.flags.DEFINE_string('noisy_dir', '../data/noisy',
                        'set noisy(clean mixed with noise) data folder')
@@ -51,13 +51,13 @@ def main():
     # ===========================================================
     # ===========       Synthesize Noisy Data        ============
     # ===========================================================
-    clean_file_list = search_wav(clean_dir)                                 
+    clean_file_list = search_wav(clean_dir)
     clean_train_list, clean_test_list = train_test_split(
         clean_file_list, test_size=0.2)
     noise_file_list = search_wav(noise_dir)[0:20]
     noise_train_list, noise_test_list = train_test_split(
         noise_file_list, test_size=0.2)
-    noise_test_list = noise_train_list # test on the same noise
+    noise_test_list = noise_train_list  # test on the same noise
 
     print('--- Synthesize Training Noisy Data ---')
     train_noisy_dir = join(noisy_dir, 'train')
@@ -72,11 +72,11 @@ def main():
     test_noisy_dir = join(noisy_dir, 'test')
     sr_clean = 16000
     sr_noise = 44100
-    data_num = None # set data_num to make testing data numbers for different snr
+    data_num = None  # set data_num to make testing data numbers for different snr
     snr_list = ['15dB']
     syn_test = Synth(clean_test_list, noise_test_list, sr_clean, sr_noise)
     syn_test.gen_noisy(snr_list, test_noisy_dir,
-                        data_num=data_num, ADD_CLEAN=True, cpu_cores=ncores)
+                       data_num=data_num, ADD_CLEAN=True, cpu_cores=ncores)
     # ===========================================================
     # ===========       Create Training Matrix       ============
     # ===========================================================
@@ -87,7 +87,7 @@ def main():
     DEL_TRAIN_WAV = True
     gen_mat = GenMatrix(training_files_dir, train_task, train_noisy_dir)
     split_num = 50  # number of spliting files
-    iter_num = 2  # set iter number to use multi-processing, cpu_cores = split_num/iter_num
+    iter_num = 50  # set iter number to use multi-processing, cpu_cores = split_num/iter_num
     input_sequence = False  # set input data is sequence or not
     gen_mat.create_h5(split_num=split_num, iter_num=iter_num,
                       input_sequence=input_sequence,
@@ -110,7 +110,8 @@ def main():
     print('--- Test Model ---')
     testing_data_dir = join(noisy_dir, 'test')
     result_dir = '../data/enhanced/{}_{}/'.format(note, date)
-    num_test = 30 # Set this number to decide how many testing data you wanna use. (None => All)
+    # Set this number to decide how many testing data you wanna use. (None => All)
+    num_test = 30
     cpu_cores = 30
     test_saver = '{}_{}/{}/best_saver_{}'.format(
         saver_dir, note, date, train_task)

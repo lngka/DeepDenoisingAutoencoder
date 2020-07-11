@@ -13,6 +13,7 @@ from os.path import join
 
 np.random.seed(1)
 
+
 class Synth:
 
     def __init__(self, clean_list, noise_list, sr_clean, sr_noise):
@@ -26,7 +27,6 @@ class Synth:
         # ADD_CLEAN: add clean-to-clean as training data.
         # data_num: randomly choose clean data number in clean dir.
         # Set sampling rate of clean and noise data.
-
 
         if not os.path.exists(noisy_dir):
             os.makedirs(noisy_dir)
@@ -47,7 +47,8 @@ class Synth:
         noise_data_list = [noise_data_list_tmp[tmp] for tmp in noise_train_num]
         print('Clean data:', clean_length)
         print('Noise data:', noise_length)
-        print('From {} noise file generate {} noisy file'.format(noise_length, clean_length))
+        print('From {} noise file generate {} noisy file'.format(
+            noise_length, clean_length))
         num_list = range(clean_length)
         # _gen_noisy(clean_data_list, noise_data_list, noisy_train_dir, snr, TIMIT_dir_name, num)
         for snr in snr_list:
@@ -58,9 +59,8 @@ class Synth:
             pool.close()
             pool.join()
 
-        
         if ADD_CLEAN:
-            ## This function will set 'n0' as clean data
+            # This function will set 'n0' as clean data
             num_list = range(len(clean_data_list))
             pool = Pool(cpu_cores)
             func = partial(_gen_clean, clean_data_list,
@@ -68,6 +68,7 @@ class Synth:
             pool.map(func, num_list)
             pool.close()
             pool.join()
+
 
 class GenMatrix:
     # This function generate noisy data to h5 file for training NN model.
@@ -89,22 +90,23 @@ class GenMatrix:
         training_data_list = search_wav(self.noisy_dir)
         print('Total training files: ', len(training_data_list))
 
-        
         for file in training_data_list:
+            print("File: ", file)
             try:
-                snr, noise_name, clean_name1, clean_neme2 = file.split('/')[-1].split('_')
-                clean_file = join(self.noisy_dir, '_'.join(['0dB', 'n0', clean_name1, clean_neme2]))
+                snr, noise_name, clean_name1, clean_neme2 = file.split(
+                    '/')[-1].split('_')
+                clean_file = join(self.noisy_dir, '_'.join(
+                    ['0dB', 'n0', clean_name1, clean_neme2]))
                 noisy_file = file
             except:
                 snr, noise_name, clean_name = file.split('/')[-1].split('_')
-                clean_file = join(self.noisy_dir, '_'.join(['0dB', 'n0', clean_name]))
+                clean_file = join(self.noisy_dir, '_'.join(
+                    ['0dB', 'n0', clean_name]))
                 noisy_file = file
-
-
 
             tmp1.append(clean_file)
             tmp2.append(noisy_file)
-        
+
         t1, t2 = shuffle(np.array(tmp1), np.array(tmp2))
 
         clean_split_list = split_list(t1, wanted_parts=split_num)

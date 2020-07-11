@@ -38,10 +38,12 @@ def search_wav(data_path):
         file_list.append(str(filename))
     return file_list
 
+
 def split_list(alist, wanted_parts=20):
     length = len(alist)
     return [alist[i * length // wanted_parts: (i + 1) * length // wanted_parts]
             for i in range(wanted_parts)]
+
 
 def wav2spec(wavfile, sr, forward_backward=None, SEQUENCE=None, norm=True, hop_length=256):
     # Note:This function return three different kind of spec for training and
@@ -99,6 +101,7 @@ def wav2spec(wavfile, sr, forward_backward=None, SEQUENCE=None, norm=True, hop_l
         else:
             return Sxx_r
 
+
 def spec2wav(wavfile, sr, output_filename, spec_test, hop_length=None):
 
     y, sr = librosa.load(wavfile, sr, mono=True)
@@ -141,7 +144,7 @@ def _gen_noisy(clean_file_list, noise_file_list, save_dir, snr, sr_clean, sr_noi
 
     clean_pwr = sum(abs(y_clean)**2) / len(y_clean)
     y_noise, sr_noise = librosa.load(noise_file, sr_noise, mono=True)
-    
+
     tmp_list = []
     if len(y_noise) < len(y_clean):
         tmp = (len(y_clean) // len(y_noise)) + 1
@@ -156,7 +159,8 @@ def _gen_noisy(clean_file_list, noise_file_list, save_dir, snr, sr_clean, sr_noi
     maxv = np.iinfo(np.int16).max
     save_name = '{}_{}_{}.wav'.format(snr, noise_name, clean_name)
     librosa.output.write_wav(
-        '/'.join([save_dir, save_name]), (y_noisy * maxv).astype(np.int16), sr_clean)
+        '/'.join([save_dir, save_name]), (y_noisy * maxv), sr_clean)
+
 
 def _gen_clean(clean_file_list, save_dir, snr, num=None):
     sr_clean = 16000
@@ -164,12 +168,12 @@ def _gen_clean(clean_file_list, save_dir, snr, num=None):
     clean_file = clean_file_list[num]
     y_clean, sr_clean = librosa.load(clean_file, sr_clean, mono=True)
 
-
     clean_name = clean_file.split('/')[-1].split('.')[0]
     maxv = np.iinfo(np.int16).max
     save_name = '{}_{}_{}.wav'.format(snr, noise_name, clean_name)
     librosa.output.write_wav(
-        '/'.join([save_dir, save_name]), (y_clean * maxv).astype(np.int16), sr_clean)
+        '/'.join([save_dir, save_name]), (y_clean * maxv), sr_clean)
+
 
 def _create_split_h5(clean_split_list,
                      noisy_split_list,
@@ -193,7 +197,7 @@ def _create_split_h5(clean_split_list,
         clean_tmp.append(clean_spec)
         # if count % int(len(clean_split_list[split_num]) / 10) == 0:
         #     tmp = int(len(clean_split_list[split_num]) / 10)
-            # print('Part {} {}%'.format(split_num, 10 * count / tmp))
+        # print('Part {} {}%'.format(split_num, 10 * count / tmp))
         # count += 1
         if clean_spec.shape[0] == noisy_spec.shape[0]:
             continue

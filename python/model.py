@@ -1,4 +1,6 @@
-import tensorflow as tf
+from utils import np_REG_batch, search_wav, wav2spec, spec2wav, copy_file
+import tensorflow.compat.v1 as tf
+import tensorflow as tf2
 import h5py
 import numpy as np
 import scipy
@@ -7,7 +9,6 @@ import os
 from os.path import join
 from tqdm import tqdm
 tqdm.monitor_interval = 0
-from utils import np_REG_batch, search_wav, wav2spec, spec2wav, copy_file
 
 
 class REG:
@@ -33,6 +34,8 @@ class REG:
             os.makedirs(self.tb_dir)
 
     def build(self, init_learning_rate, reuse):
+        tf.compat.v1.disable_eager_execution()
+
         self.init_learning_rate = init_learning_rate
         self.name = 'REG_Net'
         # regularizer = tf.contrib.layers.l2_regularizer(scale=0.1)
@@ -47,38 +50,41 @@ class REG:
                     tf.float32, shape=[None, 257], name='y_clean')
             with tf.name_scope('weights'):
                 w = {'w_o': tf.get_variable("WO", shape=[512, 257],
-                                           # regularizer=regularizer,
-                                           initializer=tf.contrib.layers.xavier_initializer()),
-                    'w_1': tf.get_variable("W1", shape=[1285, 512],
-                                           # regularizer=regularizer,
-                                           initializer=tf.contrib.layers.xavier_initializer()),
-                    'w_2': tf.get_variable("W2", shape=[512, 512],
-                                           # regularizer=regularizer,
-                                           initializer=tf.contrib.layers.xavier_initializer()),
-                    'w_3': tf.get_variable("W3", shape=[512, 512],
-                                           # regularizer=regularizer,
-                                           initializer=tf.contrib.layers.xavier_initializer()),
-                    'w_4': tf.get_variable("W4", shape=[512, 512],
-                                           # regularizer=regularizer,
-                                           initializer=tf.contrib.layers.xavier_initializer())}
+                                            # regularizer=regularizer,
+                                            initializer=tf2.initializers.GlorotUniform()),
+                     'w_1': tf.get_variable("W1", shape=[1285, 512],
+                                            # regularizer=regularizer,
+                                            initializer=tf2.initializers.GlorotUniform()),
+                     'w_2': tf.get_variable("W2", shape=[512, 512],
+                                            # regularizer=regularizer,
+                                            initializer=tf2.initializers.GlorotUniform()),
+                     'w_3': tf.get_variable("W3", shape=[512, 512],
+                                            # regularizer=regularizer,
+                                            initializer=tf2.initializers.GlorotUniform()),
+                     'w_4': tf.get_variable("W4", shape=[512, 512],
+                                            # regularizer=regularizer,
+                                            initializer=tf2.initializers.GlorotUniform())}
             with tf.name_scope('bias'):
                 b = {'b_o': tf.get_variable("bO", shape=[1, 257],
-                                           initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
-                    'b_1': tf.get_variable("b1", shape=[1, 512],
-                                           initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
-                    'b_2': tf.get_variable("b2", shape=[1, 512],
-                                           initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
-                    'b_3': tf.get_variable("b3", shape=[1, 512],
-                                           initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
-                    'b_4': tf.get_variable("b4", shape=[1, 512],
-                                           initializer=tf.constant_initializer(value=0, dtype=tf.float32))}
+                                            initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
+                     'b_1': tf.get_variable("b1", shape=[1, 512],
+                                            initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
+                     'b_2': tf.get_variable("b2", shape=[1, 512],
+                                            initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
+                     'b_3': tf.get_variable("b3", shape=[1, 512],
+                                            initializer=tf.constant_initializer(value=0, dtype=tf.float32)),
+                     'b_4': tf.get_variable("b4", shape=[1, 512],
+                                            initializer=tf.constant_initializer(value=0, dtype=tf.float32))}
             with tf.variable_scope('DNN'):
-                layer_1 = tf.nn.leaky_relu(tf.add(tf.matmul(self.x_noisy, w['w_1']), b['b_1']))
-                layer_2 = tf.nn.leaky_relu(tf.add(tf.matmul(layer_1, w['w_2']), b['b_2']))
-                layer_3 = tf.nn.leaky_relu(tf.add(tf.matmul(layer_2, w['w_3']), b['b_3']))
-                layer_4 = tf.nn.leaky_relu(tf.add(tf.matmul(layer_3, w['w_4']), b['b_4']))
+                layer_1 = tf.nn.leaky_relu(
+                    tf.add(tf.matmul(self.x_noisy, w['w_1']), b['b_1']))
+                layer_2 = tf.nn.leaky_relu(
+                    tf.add(tf.matmul(layer_1, w['w_2']), b['b_2']))
+                layer_3 = tf.nn.leaky_relu(
+                    tf.add(tf.matmul(layer_2, w['w_3']), b['b_3']))
+                layer_4 = tf.nn.leaky_relu(
+                    tf.add(tf.matmul(layer_3, w['w_4']), b['b_4']))
                 self.reg_layer = tf.add(tf.matmul(layer_4, w['w_o']), b['b_o'])
-
 
             with tf.name_scope('reg_loss'):
 
@@ -86,7 +92,7 @@ class REG:
                     self.y_clean, self.reg_layer)
 
                 tf.summary.scalar('Loss reg', self.loss_reg)
-            
+
             with tf.name_scope("exp_learning_rate"):
                 self.global_step = tf.Variable(0, trainable=False)
                 self.exp_learning_rate = tf.train.exponential_decay(self.init_learning_rate,
@@ -98,9 +104,8 @@ class REG:
             gradients, v = zip(*optimizer.compute_gradients(self.loss_reg))
             gradients, _ = tf.clip_by_global_norm(gradients, 0.5)
             self.optimizer = optimizer.apply_gradients(zip(gradients, v),
-                                                      global_step=self.global_step)
+                                                       global_step=self.global_step)
             self.saver = tf.train.Saver()
-
 
     def train(self, training_data_dir, split_num, epochs, batch_size):
         if tf.gfile.Exists(self.tb_dir):
@@ -117,7 +122,7 @@ class REG:
             min_delta = 0.01
             step = 0
             epochs = range(epochs)
-            
+
             tf.global_variables_initializer().run()
             writer = tf.summary.FileWriter(
                 self.tb_dir, sess.graph,  max_queue=10)
@@ -180,7 +185,6 @@ class REG:
         Noisy_write_dir = join(result_dir, 'Source')
         Clean_write_dir = join(result_dir, 'Target')
 
-
         if not os.path.exists(result_dir):
             os.makedirs(result_dir)
             os.makedirs(REG_dir)
@@ -192,18 +196,21 @@ class REG:
                 hop_length = 256
                 file_name = file.split('/')[-1]
                 try:
-                    snr, noise_name, clean_name1, clean_neme2 = file.split('/')[-1].split('_')
-                    clean_file = join(testing_data_dir, '_'.join(['0dB', 'n0', clean_name1, clean_neme2]))
+                    snr, noise_name, clean_name1, clean_neme2 = file.split(
+                        '/')[-1].split('_')
+                    clean_file = join(testing_data_dir, '_'.join(
+                        ['0dB', 'n0', clean_name1, clean_neme2]))
                     noisy_file = file
                 except:
-                    snr, noise_name, clean_name = file.split('/')[-1].split('_')
+                    snr, noise_name, clean_name = file.split(
+                        '/')[-1].split('_')
                 noisy_file = join(testing_data_dir, file_name)
                 REG_file = join(REG_dir, file_name)
                 Noisy_file = join(Noisy_write_dir, file_name)
                 Clean_file = join(Clean_write_dir, file_name)
 
                 X_in_seq = wav2spec(noisy_file, sr=16000,
-                                     forward_backward=True, SEQUENCE=False, norm=True, hop_length=hop_length)
+                                    forward_backward=True, SEQUENCE=False, norm=True, hop_length=hop_length)
                 re_reg = sess.run([self.reg_layer],
                                   feed_dict={self.x_noisy: X_in_seq})[:][0]
                 spec2wav(noisy_file, 16000, REG_file,
